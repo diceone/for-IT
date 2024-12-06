@@ -1,13 +1,13 @@
 [Unit]
 Description=For Automation Framework Client
 After=network.target
-Documentation=https://github.com/yourusername/for
+Documentation=https://github.com/diceone/for-IT
 
 [Service]
 Type=simple
 User=for
 Group=for
-ExecStart=/usr/local/bin/for-client --server localhost:8080 --interval 30m
+ExecStart=/usr/local/bin/for-client --server localhost:8080 --interval 30m --customer %i --environment production
 Restart=always
 RestartSec=10
 
