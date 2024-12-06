@@ -1,6 +1,6 @@
 version: 2
 
-project_name: for
+project_name: for-IT
 
 before:
   hooks:
@@ -37,18 +37,16 @@ builds:
 
 archives:
   - id: for-archive
-    name_template: "for_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "for-IT_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format: tar.gz
     files:
-      - src: "systemd/*"
-        dst: systemd
-      - src: "environments/**/*"
-        dst: environments
       - README.md
-      - LICENSE*
+      - LICENSE
+      - systemd/*
+      - scripts/*
 
 nfpms:
-  - id: for-server
+  - id: for-server-package
     package_name: for-server
     file_name_template: "for-server_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     builds:
@@ -66,18 +64,13 @@ nfpms:
       - src: systemd/for-server.service
         dst: /etc/systemd/system/for-server.service
         type: config
-      - src: environments
-        dst: /etc/for/environments
-        type: tree
     scripts:
       preinstall: "scripts/preinstall.sh"
       postinstall: "scripts/postinstall.sh"
     rpm:
       group: Applications/System
-    dependencies:
-      - systemd
-    
-  - id: for-client
+
+  - id: for-client-package
     package_name: for-client
     file_name_template: "for-client_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     builds:
@@ -100,24 +93,18 @@ nfpms:
       postinstall: "scripts/postinstall.sh"
     rpm:
       group: Applications/System
-    dependencies:
-      - systemd
 
 checksum:
-  name_template: 'checksums.txt'
-
-snapshot:
-  name_template: "{{ incpatch .Version }}-SNAPSHOT-{{.ShortCommit}}"
+  name_template: "checksums.txt"
 
 changelog:
   sort: asc
   filters:
     exclude:
-      - '^docs:'
-      - '^test:'
-      - '^ci:'
-      - Merge pull request
-      - Merge branch
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
 
 release:
   github:
@@ -126,14 +113,3 @@ release:
   draft: true
   prerelease: auto
   mode: replace
-  header: |
-    ## For Automation Framework {{ .Tag }} ({{ .Date }})
-    
-    This release includes both server and client binaries for Linux and macOS (amd64 and arm64).
-    
-    ### Installation
-    1. Download the appropriate archive for your system
-    2. Extract the archive: `tar xzf for_{{ .Version }}_OS_ARCH.tar.gz`
-    3. Run the install script: `sudo ./systemd/install.sh -t server` or `sudo ./systemd/install.sh -t client`
-    
-    For detailed installation instructions, see the README.md file.
