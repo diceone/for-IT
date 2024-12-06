@@ -9,8 +9,8 @@ import (
 	"os"
 	"time"
 
-	"for/internal/executor"
-	"for/internal/models"
+	"github.com/diceone/for-IT/internal/executor"
+	"github.com/diceone/for-IT/internal/models"
 	"github.com/gobwas/glob"
 )
 
