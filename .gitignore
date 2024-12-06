@@ -1,0 +1,26 @@
+# Binaries
+for-server
+for-client
+
+# Go specific
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# IDE specific
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Log files
+*.log
+
+# Environment specific
+.env

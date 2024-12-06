@@ -1,0 +1,22 @@
+[Unit]
+Description=For Automation Framework Client
+After=network.target
+Documentation=https://github.com/yourusername/for
+
+[Service]
+Type=simple
+User=for
+Group=for
+ExecStart=/usr/local/bin/for-client --server localhost:8080 --interval 30m
+Restart=always
+RestartSec=10
+
+# Security settings
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+
+[Install]
+WantedBy=multi-user.target

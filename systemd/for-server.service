@@ -1,0 +1,26 @@
+[Unit]
+Description=For Automation Framework Server
+After=network.target
+Documentation=https://github.com/yourusername/for
+
+[Service]
+Type=simple
+User=for
+Group=for
+ExecStart=/usr/local/bin/for-server --addr :8080 --env-dir /etc/for/environments --roles-dir /etc/for/environments/roles
+Restart=always
+RestartSec=10
+WorkingDirectory=/etc/for
+
+# Security settings
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+SystemCallArchitectures=native
+ReadOnlyPaths=/etc/for/environments
+ReadWritePaths=/var/log/for
+
+[Install]
+WantedBy=multi-user.target

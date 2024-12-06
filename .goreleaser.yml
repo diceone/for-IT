@@ -1,0 +1,139 @@
+project_name: for
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: for-server
+    main: ./cmd/server
+    binary: for-server
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+
+  - id: for-client
+    main: ./cmd/client
+    binary: for-client
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+
+archives:
+  - id: for-archive
+    name_template: "for_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format: tar.gz
+    files:
+      - src: "systemd/*"
+        dst: systemd
+      - src: "environments/**/*"
+        dst: environments
+      - README.md
+      - LICENSE*
+
+nfpms:
+  - id: for-server
+    package_name: for-server
+    file_name_template: "for-server_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    builds:
+      - for-server
+    vendor: DiceOne
+    homepage: https://github.com/diceone/for
+    maintainer: DiceOne <your.email@example.com>
+    description: For Automation Framework Server
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/local/bin
+    contents:
+      - src: systemd/for-server.service
+        dst: /etc/systemd/system/for-server.service
+        type: config
+      - src: environments
+        dst: /etc/for/environments
+        type: tree
+    scripts:
+      preinstall: "scripts/preinstall.sh"
+      postinstall: "scripts/postinstall.sh"
+    rpm:
+      group: Applications/System
+    deb:
+      depends:
+        - systemd
+    
+  - id: for-client
+    package_name: for-client
+    file_name_template: "for-client_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    builds:
+      - for-client
+    vendor: DiceOne
+    homepage: https://github.com/diceone/for
+    maintainer: DiceOne <your.email@example.com>
+    description: For Automation Framework Client
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/local/bin
+    contents:
+      - src: systemd/for-client.service
+        dst: /etc/systemd/system/for-client.service
+        type: config
+    scripts:
+      preinstall: "scripts/preinstall.sh"
+      postinstall: "scripts/postinstall.sh"
+    rpm:
+      group: Applications/System
+    deb:
+      depends:
+        - systemd
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - Merge pull request
+      - Merge branch
+
+release:
+  github:
+    owner: diceone
+    name: for
+  draft: true
+  prerelease: auto
+  mode: replace
+  header: |
+    ## For Automation Framework {{ .Tag }} ({{ .Date }})
+    
+    This release includes both server and client binaries for Linux and macOS (amd64 and arm64).
+    
+    ### Installation
+    1. Download the appropriate archive for your system
+    2. Extract the archive: `tar xzf for_{{ .Version }}_OS_ARCH.tar.gz`
+    3. Run the install script: `sudo ./systemd/install.sh -t server` or `sudo ./systemd/install.sh -t client`
+    
+    For detailed installation instructions, see the README.md file.

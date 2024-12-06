@@ -1,0 +1,31 @@
+name: customer1-production
+description: Production environment for Customer1
+
+variables:
+  APP_ENV: production
+  LOG_LEVEL: info
+  CUSTOMER: customer1
+
+mariadb:
+  version: "10.11"
+  port: 3306
+  bind_address: "0.0.0.0"
+  max_connections: 500
+  character_set_server: "utf8mb4"
+  collation_server: "utf8mb4_general_ci"
+  innodb_buffer_pool_size: "4G"
+
+playbooks:
+  basic_setup:
+    name: Basic System Setup
+    description: Install common tools and packages
+    hosts: ["*"]  # Run on all hosts
+    include_roles:
+      - common
+
+  database_setup:
+    name: Database Server Setup
+    description: Install and configure MariaDB database server
+    hosts: ["prod-db-*"]  # Will match prod-db-01.customer1.local, etc.
+    include_roles:
+      - mariadb

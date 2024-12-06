@@ -1,0 +1,42 @@
+name: MariaDB Installation
+description: Install and configure MariaDB server
+tasks:
+  - name: Configure MariaDB repository
+    command: |
+      cat > /etc/yum.repos.d/MariaDB.repo << EOF
+      [mariadb]
+      name = MariaDB
+      baseurl = https://dlm.mariadb.com/repo/mariadb-server/${mariadb.version}/yum/rhel/9/x86_64
+      gpgkey = https://dlm.mariadb.com/public.gpg
+      gpgcheck = 1
+      enabled = 1
+      EOF
+
+  - name: Install MariaDB packages
+    command: dnf install -y mariadb-server mariadb
+    when: "command 'rpm -q mariadb-server' exits 1"
+
+  - name: Create MariaDB configuration
+    command: |
+      cat > /etc/my.cnf.d/server.cnf << EOF
+      [mysqld]
+      port = ${mariadb.port}
+      bind_address = ${mariadb.bind_address}
+      max_connections = ${mariadb.max_connections}
+      character_set_server = ${mariadb.character_set_server}
+      collation_server = ${mariadb.collation_server}
+      
+      # Security settings
+      local-infile = 0
+      skip-symbolic-links
+      
+      # InnoDB settings
+      innodb_buffer_pool_size = ${mariadb.innodb_buffer_pool_size:-256M}
+      innodb_log_file_size = 64M
+      innodb_file_per_table = 1
+      EOF
+
+  - name: Enable and start MariaDB service
+    command: |
+      systemctl enable mariadb
+      systemctl start mariadb
