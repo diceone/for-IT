@@ -56,25 +56,70 @@ For-IT is a lightweight automation framework designed to execute tasks across mu
 
 ## Configuration
 
+### Directory Structure
+
+The framework uses an Ansible-like directory structure:
+```
+/etc/for/
+└── environments/
+    ├── customer1/
+    │   ├── dev.yml       # Development environment config
+    │   ├── prod.yml      # Production environment config
+    │   └── roles/        # Customer-specific roles
+    │       └── mariadb/
+    │           └── tasks.yml
+    └── roles/            # Global roles
+        └── common/       # Common tasks for all customers
+            └── tasks.yml
+```
+
+### Environment Configuration
+
+Each customer can have multiple environment configurations (e.g., `dev.yml`, `prod.yml`):
+```yaml
+name: customer1-production
+description: Production environment for Customer1
+
+variables:
+  APP_ENV: production
+  LOG_LEVEL: info
+  CUSTOMER: customer1
+
+# Role-specific configurations
+mariadb:
+  version: "10.11"
+  port: 3306
+  max_connections: 500
+
+playbooks:
+  basic_setup:
+    name: Basic System Setup
+    description: Install common tools and packages
+    include: /etc/for/environments/roles/common/tasks.yml
+```
+
+### Roles
+
+1. **Common Role** (`/etc/for/environments/roles/common/tasks.yml`):
+   - Basic system configurations
+   - Common package installation
+   - System-wide settings
+
+2. **Customer-Specific Roles** (`/etc/for/environments/customer1/roles/*/tasks.yml`):
+   - Service-specific configurations
+   - Customer-specific packages
+   - Custom scripts and tools
+
 ### Server Setup
 
-1. Create the playbook directory:
+1. Create the environments directory:
    ```bash
-   sudo mkdir -p /etc/for/playbooks
+   sudo mkdir -p /etc/for/environments
    ```
 
-2. Create a playbook file (e.g., `/etc/for/playbooks/example.yml`):
-   ```yaml
-   name: Example Playbook
-   customer: mycustomer
-   environment: production
-   tasks:
-     - name: Check disk space
-       command: df -h
-       when: hostname == "webserver1"
-     
-     - name: Check memory
-       command: free -m
+2. Copy your environment configurations and roles:
+   ```bash
+   sudo cp -r environments/* /etc/for/environments/
    ```
 
 3. Start the server:
@@ -86,11 +131,22 @@ For-IT is a lightweight automation framework designed to execute tasks across mu
 
 ### Client Setup
 
-1. Start the client with your customer name:
+1. Start the client with your customer name and environment:
    ```bash
    sudo systemctl daemon-reload
-   sudo systemctl enable for-client@mycustomer
-   sudo systemctl start for-client@mycustomer
+   sudo systemctl enable for-client@customer1
+   sudo systemctl start for-client@customer1
+   ```
+
+2. Configure the client environment:
+   ```bash
+   # Edit the client service configuration
+   sudo systemctl edit for-client@customer1
+   ```
+   Add:
+   ```ini
+   [Service]
+   Environment=FOR_ENVIRONMENT=production  # or development
    ```
 
 ## Usage
