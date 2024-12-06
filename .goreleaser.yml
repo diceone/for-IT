@@ -75,7 +75,7 @@ nfpms:
     rpm:
       group: Applications/System
     deb:
-      depends:
+      dependencies:
         - systemd
     
   - id: for-client
@@ -102,7 +102,7 @@ nfpms:
     rpm:
       group: Applications/System
     deb:
-      depends:
+      dependencies:
         - systemd
 
 checksum:
