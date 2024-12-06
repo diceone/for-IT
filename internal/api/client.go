@@ -62,7 +62,7 @@ func (c *Client) Start() error {
 }
 
 func (c *Client) CheckAndExecute() error {
-	tasks, etag, err := c.getTasks(c.hostname)
+	tasks, _, err := c.getTasks(c.hostname)
 	if err != nil {
 		return fmt.Errorf("failed to get tasks: %v", err)
 	}

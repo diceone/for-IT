@@ -2,22 +2,23 @@ package api
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io/fs"
 	"log"
+	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/diceone/for-IT/internal/models"
 	"github.com/fsnotify/fsnotify"
 	"gopkg.in/yaml.v3"
 )
 
 type EnvironmentManager struct {
-	baseDir    string
-	watcher    *fsnotify.Watcher
-	playbooks  map[string]map[string][]Playbook // customer -> environment -> playbooks
-	mu         sync.RWMutex
+	environments map[string][]models.Playbook
+	mutex        sync.RWMutex
+	watcher      *fsnotify.Watcher
+	baseDir      string
 }
 
 func NewEnvironmentManager(baseDir string) (*EnvironmentManager, error) {
@@ -26,194 +27,166 @@ func NewEnvironmentManager(baseDir string) (*EnvironmentManager, error) {
 		return nil, fmt.Errorf("failed to create watcher: %v", err)
 	}
 
-	em := &EnvironmentManager{
-		baseDir:   baseDir,
-		watcher:   watcher,
-		playbooks: make(map[string]map[string][]Playbook),
+	manager := &EnvironmentManager{
+		environments: make(map[string][]models.Playbook),
+		watcher:     watcher,
+		baseDir:     baseDir,
 	}
 
-	// Load all environments
-	if err := em.loadAllEnvironments(); err != nil {
+	if err := manager.loadEnvironments(); err != nil {
 		return nil, fmt.Errorf("failed to load environments: %v", err)
 	}
 
-	// Watch for changes
-	go em.watchForChanges()
+	go manager.watchEnvironments()
 
-	return em, nil
+	return manager, nil
 }
 
-func (em *EnvironmentManager) loadAllEnvironments() error {
-	// Get customer directories
-	customers, err := ioutil.ReadDir(em.baseDir)
+func (m *EnvironmentManager) loadEnvironments() error {
+	if err := os.MkdirAll(m.baseDir, 0755); err != nil {
+		return fmt.Errorf("failed to create base directory: %v", err)
+	}
+
+	if err := m.watcher.Add(m.baseDir); err != nil {
+		return fmt.Errorf("failed to watch base directory: %v", err)
+	}
+
+	entries, err := os.ReadDir(m.baseDir)
 	if err != nil {
 		return fmt.Errorf("failed to read base directory: %v", err)
 	}
 
-	for _, customer := range customers {
-		if !customer.IsDir() {
-			continue
-		}
-
-		customerDir := filepath.Join(em.baseDir, customer.Name())
-		files, err := ioutil.ReadDir(customerDir)
-		if err != nil {
-			return fmt.Errorf("failed to read customer directory %s: %v", customer.Name(), err)
-		}
-
-		for _, file := range files {
-			if !file.IsDir() && strings.HasSuffix(file.Name(), ".yml") {
-				env := strings.TrimSuffix(file.Name(), ".yml")
-				if err := em.loadEnvironment(customer.Name(), env); err != nil {
-					return fmt.Errorf("failed to load environment %s/%s: %v", customer.Name(), env, err)
-				}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			if err := m.loadEnvironment(entry.Name()); err != nil {
+				log.Printf("Error loading environment %s: %v", entry.Name(), err)
 			}
-		}
-
-		// Watch customer directory and its subdirectories
-		if err := em.watcher.Add(customerDir); err != nil {
-			return fmt.Errorf("failed to watch customer directory %s: %v", customer.Name(), err)
 		}
 	}
 
 	return nil
 }
 
-func (em *EnvironmentManager) loadEnvironment(customer, env string) error {
-	filePath := filepath.Join(em.baseDir, customer, env+".yml")
-	data, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		return err
+func (m *EnvironmentManager) loadEnvironment(envName string) error {
+	envDir := filepath.Join(m.baseDir, envName)
+
+	if err := m.watcher.Add(envDir); err != nil {
+		return fmt.Errorf("failed to watch environment directory: %v", err)
 	}
 
-	var config struct {
-		Playbooks map[string]struct {
-			Name        string   `yaml:"name"`
-			Description string   `yaml:"description"`
-			Hosts       []string `yaml:"hosts"`
-			IncludeRoles []string `yaml:"include_roles"`
-		} `yaml:"playbooks"`
-	}
-
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		return err
-	}
-
-	em.mu.Lock()
-	defer em.mu.Unlock()
-
-	if em.playbooks[customer] == nil {
-		em.playbooks[customer] = make(map[string][]Playbook)
-	}
-
-	var playbooks []Playbook
-	for name, pb := range config.Playbooks {
-		playbook := Playbook{
-			Name:        name,
-			Description: pb.Description,
-			Hosts:       pb.Hosts,
-			Tasks:       []Task{},
+	var playbooks []models.Playbook
+	err := filepath.WalkDir(envDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
 		}
 
-		// Load tasks from each included role
-		for _, roleName := range pb.IncludeRoles {
-			tasks, err := em.loadRole(customer, roleName)
+		if !d.IsDir() && filepath.Ext(path) == ".yml" {
+			playbook, err := m.loadPlaybook(path)
 			if err != nil {
-				log.Printf("Warning: failed to load role %s: %v", roleName, err)
-				continue
+				log.Printf("Error loading playbook %s: %v", path, err)
+				return nil
 			}
-			playbook.Tasks = append(playbook.Tasks, tasks...)
+			playbooks = append(playbooks, playbook)
 		}
 
-		playbooks = append(playbooks, playbook)
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to walk environment directory: %v", err)
 	}
-	em.playbooks[customer][env] = playbooks
+
+	m.mutex.Lock()
+	m.environments[envName] = playbooks
+	m.mutex.Unlock()
 
 	return nil
 }
 
-func (em *EnvironmentManager) loadRole(customer, roleName string) ([]Task, error) {
-	// First try customer-specific role
-	rolePath := filepath.Join(em.baseDir, customer, "roles", roleName, "tasks.yml")
-	data, err := ioutil.ReadFile(rolePath)
+func (m *EnvironmentManager) loadPlaybook(path string) (models.Playbook, error) {
+	data, err := os.ReadFile(path)
 	if err != nil {
-		// If not found in customer directory, try common roles
-		rolePath = filepath.Join(em.baseDir, "roles", roleName, "tasks.yml")
-		data, err = ioutil.ReadFile(rolePath)
-		if err != nil {
-			return nil, fmt.Errorf("role %s not found in customer or common directories", roleName)
-		}
+		return models.Playbook{}, fmt.Errorf("failed to read playbook file: %v", err)
 	}
 
-	var roleConfig struct {
-		Tasks []Task `yaml:"tasks"`
+	var playbook models.Playbook
+	if err := yaml.Unmarshal(data, &playbook); err != nil {
+		return models.Playbook{}, fmt.Errorf("failed to unmarshal playbook: %v", err)
 	}
 
-	if err := yaml.Unmarshal(data, &roleConfig); err != nil {
-		return nil, fmt.Errorf("failed to parse role %s: %v", roleName, err)
-	}
-
-	return roleConfig.Tasks, nil
+	return playbook, nil
 }
 
-func (em *EnvironmentManager) GetPlaybooksForHost(customer, env, hostname string) []Playbook {
-	em.mu.RLock()
-	defer em.mu.RUnlock()
-
-	if em.playbooks[customer] == nil || em.playbooks[customer][env] == nil {
-		return nil
-	}
-
-	var matchingPlaybooks []Playbook
-	for _, playbook := range em.playbooks[customer][env] {
-		for _, pattern := range playbook.Hosts {
-			if glob.MustCompile(pattern).Match(hostname) {
-				matchingPlaybooks = append(matchingPlaybooks, playbook)
-				break
-			}
-		}
-	}
-
-	return matchingPlaybooks
-}
-
-func (em *EnvironmentManager) watchForChanges() {
-	// Use a timer to debounce rapid file changes
-	var debounceTimer *time.Timer
-	const debounceDelay = 2 * time.Second
-
+func (m *EnvironmentManager) watchEnvironments() {
 	for {
 		select {
-		case event, ok := <-em.watcher.Events:
+		case event, ok := <-m.watcher.Events:
 			if !ok {
 				return
 			}
 
-			// Check if the file is a YAML file
-			if !strings.HasSuffix(event.Name, ".yaml") && !strings.HasSuffix(event.Name, ".yml") {
+			// Handle directory events
+			if filepath.Ext(event.Name) == "" {
+				switch event.Op {
+				case fsnotify.Create:
+					if err := m.loadEnvironment(filepath.Base(event.Name)); err != nil {
+						log.Printf("Error loading new environment: %v", err)
+					}
+				case fsnotify.Remove:
+					m.mutex.Lock()
+					delete(m.environments, filepath.Base(event.Name))
+					m.mutex.Unlock()
+				}
 				continue
 			}
 
-			// Reset or create the debounce timer
-			if debounceTimer != nil {
-				debounceTimer.Stop()
-			}
-			debounceTimer = time.AfterFunc(debounceDelay, func() {
-				log.Printf("Detected change in %s, reloading environments", event.Name)
-				if err := em.loadAllEnvironments(); err != nil {
-					log.Printf("Error reloading environments: %v", err)
+			// Handle playbook file events
+			if filepath.Ext(event.Name) == ".yml" {
+				envName := filepath.Base(filepath.Dir(event.Name))
+				if err := m.loadEnvironment(envName); err != nil {
+					log.Printf("Error reloading environment %s: %v", envName, err)
 				}
-			})
+			}
 
-		case err, ok := <-em.watcher.Errors:
+		case err, ok := <-m.watcher.Errors:
 			if !ok {
 				return
 			}
-			log.Printf("Error watching for file changes: %v", err)
+			log.Printf("Watcher error: %v", err)
 		}
 	}
 }
 
-func (em *EnvironmentManager) Close() error {
-	return em.watcher.Close()
+func (m *EnvironmentManager) GetPlaybooksForHost(hostname string) []models.Task {
+	var tasks []models.Task
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	for _, playbooks := range m.environments {
+		for _, playbook := range playbooks {
+			for _, task := range playbook.Tasks {
+				if task.When == "" || task.When == hostname {
+					tasks = append(tasks, task)
+				}
+			}
+		}
+	}
+
+	return tasks
+}
+
+func (m *EnvironmentManager) GetEnvironments() map[string][]models.Playbook {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	environments := make(map[string][]models.Playbook, len(m.environments))
+	for env, playbooks := range m.environments {
+		environments[env] = playbooks
+	}
+
+	return environments
+}
+
+func (m *EnvironmentManager) Close() error {
+	return m.watcher.Close()
 }
