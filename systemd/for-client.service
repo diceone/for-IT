@@ -4,15 +4,16 @@ After=network.target
 
 [Service]
 Type=simple
-User=for
-Group=for
+# Run as root to allow package installation and system configuration
+User=root
+Group=root
 RuntimeDirectory=for
 RuntimeDirectoryMode=0755
 LogsDirectory=for
 LogsDirectoryMode=0755
 WorkingDirectory=/etc/for
 ExecStartPre=/bin/mkdir -p /var/log/for
-ExecStartPre=/bin/chown for:for /var/log/for
+ExecStartPre=/bin/chown root:root /var/log/for
 ExecStartPre=/bin/chmod 755 /var/log/for
 ExecStart=/usr/local/bin/for-client -server localhost:8080 -customer customer1 -environment production -interval 30m
 Restart=always
