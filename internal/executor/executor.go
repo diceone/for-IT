@@ -14,7 +14,7 @@ type Executor struct {
 }
 
 func NewExecutor() *Executor {
-	shell := "/bin/sh"
+	shell := "/bin/bash"
 	if runtime.GOOS == "windows" {
 		shell = "cmd.exe"
 	}
