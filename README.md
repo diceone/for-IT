@@ -164,11 +164,60 @@ for-server [options]
 ```bash
 for-client [options]
   --server string       Server address (default "localhost:8080")
-  --interval duration   Check interval (default 5m)
+  --interval duration   Check interval (default 30m)
   --customer string     Customer name (required)
-  --environment string  Environment name (default "production")
-  --dry-run            Dry run mode
+  --environment string  Environment name (required)
+  --dry-run            Show what would be executed without making changes
+  --run-once           Run once and exit
 ```
+
+### Logging
+
+Both the server and client log to `/var/log/for/`:
+- Server logs:
+  - `/var/log/for/server.log`: General server operations
+  - `/var/log/for/server.error.log`: Server errors
+
+- Client logs:
+  - `/var/log/for/client.log`: Task execution and client operations
+  - `/var/log/for/client.error.log`: Client errors
+
+The log directory and permissions are automatically managed by the systemd service files.
+
+### Debugging
+
+1. Check server logs:
+   ```bash
+   tail -f /var/log/for/server.log
+   ```
+   This shows:
+   - Playbook loading and parsing
+   - Task distribution
+   - Client connections
+
+2. Check client logs:
+   ```bash
+   tail -f /var/log/for/client.log
+   ```
+   This shows:
+   - Task execution results
+   - Server connection status
+   - Configuration details
+
+3. Test task execution:
+   ```bash
+   # Run client once with debug output
+   for-client -server localhost:8080 -customer customer1 -environment production -run-once
+   ```
+
+4. Verify server operation:
+   ```bash
+   # Check if server is running
+   systemctl status for-server
+   
+   # View loaded playbooks
+   ls -R /etc/for/environments/
+   ```
 
 ## Playbook Format
 
