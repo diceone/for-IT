@@ -74,9 +74,8 @@ nfpms:
       postinstall: "scripts/postinstall.sh"
     rpm:
       group: Applications/System
-    deb:
-      dependencies:
-        - systemd
+    dependencies:
+      - systemd
     
   - id: for-client
     package_name: for-client
@@ -101,9 +100,8 @@ nfpms:
       postinstall: "scripts/postinstall.sh"
     rpm:
       group: Applications/System
-    deb:
-      dependencies:
-        - systemd
+    dependencies:
+      - systemd
 
 checksum:
   name_template: 'checksums.txt'
