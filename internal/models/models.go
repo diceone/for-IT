@@ -17,6 +17,8 @@ type Playbook struct {
 	Name        string   `json:"name" yaml:"name"`
 	Description string   `json:"description" yaml:"description"`
 	Hosts       []string `json:"hosts" yaml:"hosts"`
+	Customer    string   `json:"customer" yaml:"customer"`
+	Environment string   `json:"environment" yaml:"environment"`
 	Tasks       []Task   `json:"tasks" yaml:"tasks"`
 }
 
