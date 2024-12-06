@@ -3,7 +3,7 @@ customer: customer1
 environment: production
 
 # Include common tasks first
-include: /etc/for/roles/common/tasks.yml
+include: /etc/for/environments/roles/common/tasks.yml
 
 # Customer-specific tasks
 tasks:
