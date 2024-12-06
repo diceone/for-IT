@@ -45,25 +45,33 @@ func NewServer(playbookDir string) (*Server, error) {
 }
 
 func (s *Server) loadPlaybooks() error {
-	files, err := os.ReadDir(s.playbookDir)
-	if err != nil {
-		return fmt.Errorf("failed to read playbook directory: %v", err)
-	}
-
-	for _, file := range files {
-		if !file.IsDir() && strings.HasSuffix(file.Name(), ".yml") {
-			if err := s.loadPlaybook(file.Name()); err != nil {
-				log.Printf("Error loading playbook %s: %v", file.Name(), err)
-				continue
+	err := filepath.Walk(s.playbookDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && strings.HasSuffix(info.Name(), ".yml") {
+			relPath, err := filepath.Rel(s.playbookDir, path)
+			if err != nil {
+				return fmt.Errorf("failed to get relative path: %v", err)
+			}
+			if err := s.loadPlaybook(relPath); err != nil {
+				log.Printf("Error loading playbook %s: %v", relPath, err)
 			}
 		}
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to walk playbook directory: %v", err)
 	}
 
+	log.Printf("Loaded %d playbooks", len(s.playbooks))
 	return nil
 }
 
 func (s *Server) loadPlaybook(filename string) error {
 	path := filepath.Join(s.playbookDir, filename)
+	log.Printf("Loading playbook: %s", path)
 
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -79,6 +87,8 @@ func (s *Server) loadPlaybook(filename string) error {
 	s.playbooks[filename] = playbook
 	s.mutex.Unlock()
 
+	log.Printf("Loaded playbook %s: customer=%s, environment=%s, tasks=%d", 
+		filename, playbook.Customer, playbook.Environment, len(playbook.Tasks))
 	return nil
 }
 

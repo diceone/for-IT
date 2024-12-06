@@ -9,20 +9,28 @@ import (
 	"syscall"
 
 	"github.com/diceone/for-IT/internal/api"
+	"github.com/diceone/for-IT/internal/logging"
 )
 
 func main() {
 	var (
-		addr       = flag.String("addr", ":8080", "Server address")
+		addr        = flag.String("addr", ":8080", "Server address")
 		playbookDir = flag.String("playbook-dir", "playbooks", "Directory containing playbook files")
 	)
 	flag.Parse()
+
+	// Setup logging
+	if err := logging.SetupLogging("server"); err != nil {
+		log.Fatalf("Failed to setup logging: %v", err)
+	}
 
 	// Ensure absolute path for playbook directory
 	absPlaybookDir, err := filepath.Abs(*playbookDir)
 	if err != nil {
 		log.Fatalf("Failed to get absolute path for playbook directory: %v", err)
 	}
+
+	log.Printf("Using playbook directory: %s", absPlaybookDir)
 
 	// Create and start server
 	server, err := api.NewServer(absPlaybookDir)

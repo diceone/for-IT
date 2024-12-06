@@ -1,5 +1,5 @@
 [Unit]
-Description=For Automation Framework Client
+Description=For Client Service
 After=network.target
 Documentation=https://github.com/diceone/for-IT
 
@@ -10,7 +10,7 @@ Group=for
 ExecStartPre=/bin/mkdir -p /var/log/for
 ExecStartPre=/bin/chown for:for /var/log/for
 ExecStartPre=/bin/chmod 755 /var/log/for
-ExecStart=/usr/local/bin/for-client --server localhost:8080 --interval 1m --customer %i --environment production
+ExecStart=/usr/local/bin/for-client -server localhost:8080 -customer customer1 -environment production
 Restart=always
 RestartSec=10
 StandardOutput=append:/var/log/for/client.log
