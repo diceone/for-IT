@@ -7,9 +7,14 @@ Documentation=https://github.com/diceone/for-IT
 Type=simple
 User=for
 Group=for
-ExecStart=/usr/local/bin/for-client --server localhost:8080 --interval 30m --customer %i --environment production
+ExecStartPre=/bin/mkdir -p /var/log/for
+ExecStartPre=/bin/chown for:for /var/log/for
+ExecStartPre=/bin/chmod 755 /var/log/for
+ExecStart=/usr/local/bin/for-client --server localhost:8080 --interval 1m --customer %i --environment production --log /var/log/for/client.log
 Restart=always
 RestartSec=10
+StandardOutput=append:/var/log/for/client.log
+StandardError=append:/var/log/for/client.error.log
 
 # Security settings
 NoNewPrivileges=yes
