@@ -5,35 +5,49 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/diceone/for-IT/internal/api"
 )
 
 func main() {
-	addr := flag.String("addr", ":8080", "Server address")
-	dataDir := flag.String("data-dir", "/etc/for", "Data directory")
+	var (
+		addr       = flag.String("addr", ":8080", "Server address")
+		playbookDir = flag.String("playbook-dir", "playbooks", "Directory containing playbook files")
+	)
 	flag.Parse()
 
-	// Create server instance
-	server, err := api.NewServer(*addr, *dataDir)
+	// Ensure absolute path for playbook directory
+	absPlaybookDir, err := filepath.Abs(*playbookDir)
+	if err != nil {
+		log.Fatalf("Failed to get absolute path for playbook directory: %v", err)
+	}
+
+	// Create and start server
+	server, err := api.NewServer(absPlaybookDir)
 	if err != nil {
 		log.Fatalf("Failed to create server: %v", err)
 	}
 
-	// Handle graceful shutdown
+	// Handle shutdown gracefully
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	errChan := make(chan error, 1)
 
+	// Start server in a goroutine
 	go func() {
-		sig := <-sigChan
-		log.Printf("Received signal %v, shutting down...", sig)
-		if err := server.Stop(); err != nil {
-			log.Printf("Error during shutdown: %v", err)
+		log.Printf("Starting server on %s", *addr)
+		if err := server.Start(*addr); err != nil {
+			errChan <- err
 		}
-		os.Exit(0)
 	}()
 
-	// Start server
-	log.Fatal(server.Start())
+	// Wait for shutdown signal
+	select {
+	case <-sigChan:
+		log.Println("Shutting down server...")
+	case err := <-errChan:
+		log.Printf("Server error: %v", err)
+	}
 }
