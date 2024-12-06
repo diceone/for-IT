@@ -54,7 +54,7 @@ nfpms:
     builds:
       - for-server
     vendor: DiceOne
-    homepage: https://github.com/diceone/for
+    homepage: https://github.com/diceone/for-IT
     maintainer: DiceOne <your.email@example.com>
     description: For Automation Framework Server
     license: MIT
@@ -83,7 +83,7 @@ nfpms:
     builds:
       - for-client
     vendor: DiceOne
-    homepage: https://github.com/diceone/for
+    homepage: https://github.com/diceone/for-IT
     maintainer: DiceOne <your.email@example.com>
     description: For Automation Framework Client
     license: MIT
@@ -122,7 +122,7 @@ changelog:
 release:
   github:
     owner: diceone
-    name: for
+    name: for-IT
   draft: true
   prerelease: auto
   mode: replace

@@ -1,4 +1,4 @@
-module for
+module github.com/diceone/for-IT
 
 go 1.20
 

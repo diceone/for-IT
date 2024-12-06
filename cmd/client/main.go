@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"for/internal/api"
+	"github.com/diceone/for-IT/internal/api"
 )
 
 func main() {
