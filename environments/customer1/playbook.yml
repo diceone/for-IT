@@ -5,7 +5,7 @@ customer: customer1
 environment: production
 
 # Include common tasks first
-include: ../roles/common/tasks.yml
+include: /etc/for/environments/roles/common/tasks.yml
 
 # Customer-specific tasks
 tasks:
@@ -22,19 +22,8 @@ tasks:
     command: |
       echo "CUSTOMER_NAME=customer1" > /etc/customer-config
       echo "ENVIRONMENT=production" >> /etc/customer-config
-    when: "*"  # Run on all hosts
+    when: "*"
 
   - name: Install customer-specific packages
     command: apt-get install -y postgresql-client redis-tools
-    when: "*"  # Run on all hosts
-
-  - name: Setup customer backup script
-    command: |
-      cat > /usr/local/bin/backup.sh << 'EOF'
-      #!/bin/bash
-      backup_dir="/var/backups/customer1"
-      mkdir -p "$backup_dir"
-      date > "$backup_dir/last_backup"
-      EOF
-      chmod +x /usr/local/bin/backup.sh
-    when: "*"  # Run on all hosts
+    when: "*"

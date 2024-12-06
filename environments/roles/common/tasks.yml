@@ -15,4 +15,4 @@ tasks:
         echo "Unsupported package manager"
         exit 1
       fi
-    when: "hostname matches '*'"  # Run on all hosts
+    when: "*"  # Run on all hosts
