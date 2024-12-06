@@ -93,8 +93,23 @@ func (s *Server) loadPlaybook(filename string) error {
 }
 
 func (s *Server) watchPlaybooks() {
-	if err := s.watcher.Add(s.playbookDir); err != nil {
-		log.Printf("Error watching playbook directory: %v", err)
+	// Watch the main playbook directory and all subdirectories
+	err := filepath.Walk(s.playbookDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			if err := s.watcher.Add(path); err != nil {
+				log.Printf("Error watching directory %s: %v", path, err)
+			} else {
+				log.Printf("Watching directory: %s", path)
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		log.Printf("Error setting up directory watchers: %v", err)
 		return
 	}
 
@@ -108,15 +123,23 @@ func (s *Server) watchPlaybooks() {
 				continue
 			}
 
-			filename := filepath.Base(event.Name)
+			// Get relative path for the playbook
+			relPath, err := filepath.Rel(s.playbookDir, event.Name)
+			if err != nil {
+				log.Printf("Error getting relative path for %s: %v", event.Name, err)
+				continue
+			}
+
 			switch event.Op {
 			case fsnotify.Write, fsnotify.Create:
-				if err := s.loadPlaybook(filename); err != nil {
-					log.Printf("Error reloading playbook %s: %v", filename, err)
+				log.Printf("Playbook modified: %s", relPath)
+				if err := s.loadPlaybook(relPath); err != nil {
+					log.Printf("Error reloading playbook %s: %v", relPath, err)
 				}
-			case fsnotify.Remove:
+			case fsnotify.Remove, fsnotify.Rename:
+				log.Printf("Playbook removed: %s", relPath)
 				s.mutex.Lock()
-				delete(s.playbooks, filename)
+				delete(s.playbooks, relPath)
 				s.mutex.Unlock()
 			}
 
