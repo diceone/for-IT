@@ -1,4 +1,6 @@
 ---
+name: Debug Playbook
+description: Test if playbook execution works
 customer: customer1
 environment: production
 
@@ -7,6 +9,15 @@ include: ../roles/common/tasks.yml
 
 # Customer-specific tasks
 tasks:
+  - name: Debug - Echo Test
+    command: echo "Debug test executed at $(date)"
+    when: "*"
+
+  - name: Debug - Write Test File
+    command: |
+      echo "Test executed at $(date)" > /tmp/for-debug.txt
+    when: "*"
+
   - name: Configure customer-specific settings
     command: |
       echo "CUSTOMER_NAME=customer1" > /etc/customer-config
