@@ -51,22 +51,31 @@ func (e *Executor) ExecuteWithEnv(command string, env map[string]string) (string
 		// Debian/Ubuntu package management
 		env["DEBIAN_FRONTEND"] = "noninteractive"
 		env["DEBIAN_PRIORITY"] = "critical"
+		env["TERM"] = "linux"
+		env["DEBIAN_FRONTEND"] = "noninteractive"
+		env["APT_LISTCHANGES_FRONTEND"] = "none"
+		env["UCF_FORCE_CONFFOLD"] = "true"
 
 		// Add -y flag to apt-get if not present
 		if strings.Contains(command, "apt-get") && !strings.Contains(command, " -y ") && !strings.HasSuffix(command, " -y") {
-			command = strings.Replace(command, "apt-get ", "apt-get -y ", 1)
+			command = strings.Replace(command, "apt-get ", "apt-get -y --allow-downgrades --allow-remove-essential --allow-change-held-packages ", 1)
 		}
 
 		// Add -y flag to apt if not present
 		if strings.Contains(command, "apt ") && !strings.Contains(command, " -y ") && !strings.HasSuffix(command, " -y") {
-			command = strings.Replace(command, "apt ", "apt -y ", 1)
+			command = strings.Replace(command, "apt ", "apt -y --allow-downgrades --allow-remove-essential --allow-change-held-packages ", 1)
 		}
 
 		// For install commands, add additional options
 		if strings.Contains(command, "install") {
 			if !strings.Contains(command, "-o Dpkg::Options") {
-				command = command + " -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\""
+				command = command + " -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" -o Dpkg::Options::=\"--force-confnew\""
 			}
+		}
+
+		// Try to fix package system if installing
+		if strings.Contains(command, "install") {
+			command = fmt.Sprintf("dpkg --configure -a || true; apt-get update || true; %s", command)
 		}
 
 	case strings.Contains(command, "yum"):
